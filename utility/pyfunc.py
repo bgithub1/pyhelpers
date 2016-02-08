@@ -143,6 +143,7 @@ def readData(url,hasHeader=True):
 
     '''
     ret = read_csv(url,header=0 if hasHeader else None)
+    
     return ret 
 
 def readBarChartCsv(filename='ibmBarchart.csv',hasHeader=False):
@@ -153,7 +154,7 @@ def readBarChartCsv(filename='ibmBarchart.csv',hasHeader=False):
     '''
     data = readData(filename,hasHeader=hasHeader)
     # convert date
-    
+    data = data.sort(1)
     dates = data[1].apply(lambda mmDdYyyy:getYyyyMmDdFromBarChartDate(mmDdYyyy)*100*100*100)
     df = commonFormat(data[0], dates, data[2], data[3], 
                       data[4], data[5], data[6])
@@ -168,6 +169,7 @@ def readQuandlData(secname='CLZ2017',quandlPrefix='https://www.quandl.com/api/v3
     '''
     filename = quandlPrefix + '/' + exchange + '/' + secname + '.' + suffix
     data = readData(filename)
+    data = data.sort('Date')
     dates = data['Date'].apply(lambda yyyyMmDd:getYyyyMmDdFromYahooDate(yyyyMmDd)*100*100*100)
     df = commonFormat([None]*len(data), dates, data['Open'], data['High'], 
                 data['Low'], data['Settle'], data['Volume'])
@@ -195,6 +197,7 @@ def readYahoo(secname='SPY',begYyyyMmDd=20060101,endYyyyMmDd=getTimeNumFromPosix
     
     
     data = readData(httpstring)
+    data = data.sort('Date')
     dates = data['Date'].apply(lambda yyyyMmDd:getYyyyMmDdFromYahooDate(yyyyMmDd)*100*100*100)
     df = commonFormat([None]*len(data), dates, data['Open'], data['High'], 
                 data['Low'], data['Close'], data['Volume'], data['Adj Close'])
@@ -205,4 +208,8 @@ def dsInsert(ds,index, value):
     temp = ds.tolist()
     temp.insert(index,value)
     return pd.Series(temp)
+
+print(readBarChartCsv()[0:20])
+print(readYahoo()[0:20])
+print(readQuandlData()[0:20])
 
