@@ -209,7 +209,35 @@ def dsInsert(ds,index, value):
     temp.insert(index,value)
     return pd.Series(temp)
 
-print(readBarChartCsv()[0:20])
-print(readYahoo()[0:20])
-print(readQuandlData()[0:20])
+
+def asb(np1,np2, boolarray):
+    ''' emulate the r construct of x[b] = y[b]
+        Example:
+            $ x = np.array([0]*10)
+            $ y = np.array(range(10))
+            $ b = np.array([True,False]*5)
+            $ print asb(x,y,b)
+            $ [0, 0, 2, 0, 4, 0, 6, 0, 8, 0]
+            $ b  = np.array(y%2!=0)
+            $ print asb(x,y,b)
+            $ [0, 1, 0, 3, 0, 5, 0, 7, 0, 9]
+            $ x = [0]*10
+            $ y = range(10)
+            b = np.ndarray.tolist(b)
+            $ print asb(x,y,b)
+            $ [0, 1, 0, 3, 0, 5, 0, 7, 0, 9]
+    '''
+    def f(x,y,b):
+        if b:
+            return y
+        else:
+            return x
+        
+    m = map(lambda x,y,b:f(x,y,b),np1,np2,boolarray)
+    return np.array(m)
+ 
+
+# print(readBarChartCsv()[0:20])
+# print(readYahoo()[0:20])
+# print(readQuandlData()[0:20])
 
