@@ -4,6 +4,7 @@ Created on Feb 6, 2016
 @author: billperlman
 '''
 from pandas.io.parsers import read_csv
+#from __builtin__ import None
 '''
 
 '''
@@ -123,12 +124,13 @@ def commonFormat(symbols,yyyyMmDdHhMmSs,opens,highs,lows,closes,volumes,adjclose
                           np.array(lows),
                           np.array(closes),
                           np.array(volumes),
+                          adjcls,
                           adjopens,
                           adjhighs,
                           adjlows,
                           adjcls]).T
     ret.columns = ['Contract','Date','Open','High','Low','Close','Volume',
-                   'AdjOpen','AdjHigh','AdjLow','AdjClose']
+                   'Adjusted','AdjOpen','AdjHigh','AdjLow','AdjClose']
     return ret
 
 todayYyyyMmDd = getYyyyMmDdFromYahooDate()
@@ -235,8 +237,74 @@ def asb(np1,np2, boolarray):
         
     m = map(lambda x,y,b:f(x,y,b),np1,np2,boolarray)
     return np.array(m)
- 
 
+def pseudoStockFromReturns(dfWithDateAndReturnsCols):
+    ''' create a psuedo stock from returns
+        args:
+            dfWithDateAndReturnsCols - a Dataframe with 2 cols - Date and ret
+    '''
+    pseudostk = np.cumprod(dfWithDateAndReturnsCols[:,1]+1)
+    df = DataFrame({'Date':dfWithDateAndReturnsCols[:,0],'Adjusted':pseudostk,'AdjPrev':[1,pseudostk[0:(len(pseudostk)-1)]]})
+    return df
+
+'''
+returnsPerformance <- function(returnsDf,printit=TRUE){
+    psu <- pseudoStockFromReturns(returnsDf)
+    return(stockPerformance(dataForStock=psu,printit=printit))
+'''
+def stockPerformance(symbol='SPY',
+                    begYyyyMmDd=19990101,
+                    endYyyyMmDd=getYyyyMmDdFromYahooDate(),
+                    daysOfSd=50,
+                    printit=True,
+                    dataForStock=None,
+                    entryCol='AdjPrevClose',
+                    exitCol='Adjusted'):
+    stockData=dataForStock
+    if stockData==None:
+        try:
+            stockData = readYahoo(symbol, begYyyyMmDd, endYyyyMmDd)
+        except Exception, e:
+            print 'error getting data for ' + symbol + 'err = ' + e
+    try:
+        ''' need to fake out older versions of Pandas to check for null'''
+        b = stockData==None
+        if b:
+            print 'error getting data for ' + symbol 
+    except:
+        ''' do nothing and fall through '''
+        b = None
+    
+    stockData['AdjPrevClose'] = dsInsert(stockData['Adjusted'][0:(len(stockData)-1)],0,None)
+    stockData['PrevClose'] = dsInsert(stockData['Close'][0:(len(stockData)-1)],0,None)
+    stockData = stockData[1:]
+    stockData.index = range(len(stockData))
+    firstYyyyMmDd = stockData.ix[0,'Date']/(100*100*100)
+    firstYear = int(str(firstYyyyMmDd)[0:4])
+    firstMonth = int(str(firstYyyyMmDd)[4:6])
+    firstDay = int(str(firstYyyyMmDd)[6:8])
+    retdat = stockData.ix[:,exitCol] / stockData.ix[:,entryCol] - 1
+    m = retdat.mean()
+    s = retdat.std()
+    sh = m/s * 252**.5
+    cm = np.cumprod(retdat)
+    listMeans = pd.rolling_mean(retdat,daysOfSd)
+    listSds = pd.rolling_std(retdat,daysOfSd)
+    listShs = listMeans/listSds * 252**.5
+    stockData['rollsh'] = listShs
+    stockData['cumret'] = cm
+    
+    return {'mean':m,'sd':s,'sharpe':sh,'stockData':stockData}    
+        
+
+def returnsPerformance(returnsDf,printit=True):
+    psu = pseudoStockFromReturns(returnsDf)
+    return stockPerformance(dataForStock=psu,printit=printit)
+
+s = stockPerformance()
+print s['mean']
+print s['sd']
+print s['sharpe']
 # print(readBarChartCsv()[0:20])
 # print(readYahoo()[0:20])
 # print(readQuandlData()[0:20])
