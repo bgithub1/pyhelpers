@@ -243,9 +243,23 @@ def pseudoStockFromReturns(dfWithDateAndReturnsCols):
         args:
             dfWithDateAndReturnsCols - a Dataframe with 2 cols - Date and ret
     '''
-    pseudostk = np.cumprod(dfWithDateAndReturnsCols.iloc[:,1]+1)
-    df = DataFrame({'Date':dfWithDateAndReturnsCols.iloc[:,0],'Adjusted':pseudostk,'AdjPrev':dsInsert(pseudostk[0:(len(pseudostk)-1)],1,0)})
+    plusone = dfWithDateAndReturnsCols.iloc[:,1]+1
+    plusone.index = range(len(plusone))
+    pseudostk = plusone.cumprod()
+    areanynone = pd.isnull(pseudostk) # get Series of bools
+    if all(~areanynone) != True:  # if none are nan or None, then all will be true
+        raise MyError('there are nan or null returns') # there was a None or nan somewhere
+    dates = dfWithDateAndReturnsCols.iloc[:,0]
+    dates.index = range(len(dates))
+    df = DataFrame({'Date':dates,'Adjusted':pseudostk,'AdjPrev':dsInsert(pseudostk[0:(len(pseudostk)-1)],1,0)})
     return df
+
+
+class MyError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
 
 def rbind(df,newrec):
     ''' r-like append of row to DataFrame'''
@@ -394,9 +408,9 @@ def makeReturns(arr):
     ''' '''
     
 
-def returnsPerformance(returnsDf,printit=True):
+def returnsPerformance(returnsDf,printit=True,block=False):
     psu = pseudoStockFromReturns(returnsDf)
-    return stockPerformance(dataForStock=psu,printit=printit)
+    return stockPerformance(dataForStock=psu,printit=printit,block=block)
 
 def printStockPerformance(stockPerformanceResults,block=False):
     '''
@@ -440,12 +454,12 @@ def printStockPerformance(stockPerformanceResults,block=False):
     
     
     
-def plotDf(df,dateCol="Date",priceCol="Adjusted",subplotArray=None,showit=True):
+def plotDf(df,dateCol="Date",priceCol="Adjusted",subplotArray=None,showit=True,xaxismarks=10):
     ''' '''
     date = df[dateCol]
     x = range(len(date))
     p = df[priceCol]
-    r = range(0,len(date),len(date)/20)
+    r = range(0,len(date),len(date)/xaxismarks)
     dtc = map(lambda a:'%d' % a,date[r])
     if subplotArray:
         plt.subplot(subplotArray[0],subplotArray[1],subplotArray[2])
@@ -468,11 +482,11 @@ def testsubplot():
     plt.ylabel('Undamped')
     plt.show()
 
-block=False
-s = stockPerformance(begYyyyMmDd=20060101,block=block)
-sr = s['retdat']
-stkd = s['stockData']
-dt = stkd['Date']
+# block=False
+# s = stockPerformance(begYyyyMmDd=20060101,block=block)
+# sr = s['retdat']
+# stkd = s['stockData']
+# dt = stkd['Date']
 #ptk = peakToTroughs(sr,dt)
 
 # print(readBarChartCsv()[0:20])
