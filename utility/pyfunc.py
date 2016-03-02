@@ -10,6 +10,7 @@ import time
 import numpy as np
 import datetime
 import pandas as pd
+from test.test_gc import C1055820
 pd.set_option('precision', 15)
 from pandas import  DataFrame, Series
 from pandas.io.data import DataReader
@@ -148,6 +149,12 @@ def readData(url,hasHeader=True):
     
     return ret 
 
+def writeData(df,filename):
+    '''
+    '''
+    df.to_csv(filename)
+
+    
 def readBarChartCsv(filename='ibmBarchart.csv',hasHeader=False):
     ''' read csv file formated like the output of the BarChart csv downloads
         Example:
@@ -278,6 +285,11 @@ def names(obj):
 
 def peakToTroughs(dailyret,dates):
     '''
+    Example:
+        sr = s['retdat']
+        stkd = s['stockData']
+        dt = stkd['Date']
+        ptk = peakToTroughs(sr,dt)
     '''
     ''' get cummulative percent changes'''
     drs = Series(dailyret)
@@ -326,44 +338,6 @@ def peakToTroughs(dailyret,dates):
     return ret
     
       
-'''
-#'    @param soc: output from strat_openClose
-peakToTroughs <- function(dailyret,dates){
-    soc1dr <- dailyret
-    soc1cumdr <- cumprod(soc1dr+1)
-    indexOfLocalPeaks <- findPeaks(soc1cumdr)-1 # find peaks
-    # data frame with 2 columns, where column 1 is a peak, and column 2 is the next peak that follows it
-    dd <- data.frame(indexOfLocalPeaks[1:(length(indexOfLocalPeaks)-1)],indexOfLocalPeaks[2:length(indexOfLocalPeaks)])
-    # add one more row to dd to represent the last peak and last row of soc1cumdr, so
-    #   that you calculate the last possible trough, if it there was one between the last peak and the last day
-    #   of data
-    dd <- rbind(dd,c(dd[nrow(dd),2],nrow(soc1cumdr)))
-    minBetween2Peaks <- function(x){return(min(soc1cumdr[x[1]:x[2]]))}
-    localMins <- apply(dd,1,minBetween2Peaks)
-    localPeaks <- soc1cumdr[indexOfLocalPeaks]
-    diffs <- (localMins - localPeaks)/localPeaks
-    # get indices of localMins in soc1cumdr so that you can get their dates
-    indexOfLocalMins <- sapply(localMins,function(x){which(soc1cumdr==x)[1]})
-    
-    datesOfLocalMins <- dates[indexOfLocalMins]
-    # calculate peak to end of data
-    minBetweenPeakAndEnd <- function(x){return(min(soc1cumdr[x[1]:length(soc1cumdr)]))}
-    absMinsToEnd <- apply(dd,1,minBetweenPeakAndEnd)
-    diffsToEnd <- (absMinsToEnd - localPeaks)/localPeaks
-
-
-    ret <- data.frame(cbind(datesOfLocalMins,localPeaks,localMins,diffs,diffsToEnd))
-    colnames(ret) <- c('Date','Peak','Valley','Diff','DiffToEnd')
-    return(ret)
-}
-'''
-
-
-'''
-returnsPerformance <- function(returnsDf,printit=TRUE){
-    psu <- pseudoStockFromReturns(returnsDf)
-    return(stockPerformance(dataForStock=psu,printit=printit))
-'''
 def stockPerformance(symbol='SPY',
                     begYyyyMmDd=19990101,
                     endYyyyMmDd=getYyyyMmDdFromYahooDate(),
@@ -373,6 +347,11 @@ def stockPerformance(symbol='SPY',
                     entryCol='AdjPrevClose',
                     exitCol='Adjusted',
                     block=False):
+    ''' 
+    Example:
+        block=False
+        s = stockPerformance(begYyyyMmDd=20060101,block=block)
+    '''
     stockData=dataForStock
     if stockData is None:
         stockData = readYahoo(symbol, begYyyyMmDd, endYyyyMmDd)
@@ -414,20 +393,7 @@ def returnsPerformance(returnsDf,printit=True,block=False):
 
 def printStockPerformance(stockPerformanceResults,block=False):
     '''
-    s <- stockPerformanceResults
-    par(mfrow=c(2,2))
-    plotDf(s$stockData,priceCol='cumret',ylow=NULL,nameOfDf='cumret')
-    plotDf(s$stockData,priceCol='rollsh',ylow=NULL,nameOfDf='rolling sharpe')
-    hist(s$retdat,breaks=50)
-    hist(s$stockData$rollsh,breaks=50)
-    print(paste('as:',s$firstYyyyMmDd,' mean=',round(s$mean,4),' sd=',round(s$sd,4),' sharpe=',round(s$sharpe,4),' avg sharpe=',round(s$sharpeAvg,4),sep=""))
-    m <- round(min(s$peakToTrough$DiffToEnd),4)
-    print(paste('worst peak to trough =',m))
-    m <- round(median(s$peakToTrough$DiffToEnd),4)
-    print(paste('median peak to trough =',m))
-    print('last 10 days of rolling sharpe')
-    print(s$stockData[(nrow(s$stockData)-10):nrow(s$stockData),c('Date','rollsh')])
-    
+        use plt.subplot to plot 2 rows and 2 cols of performance data
     '''
     plt.clf()
     s = stockPerformanceResults
@@ -455,15 +421,30 @@ def printStockPerformance(stockPerformanceResults,block=False):
     
     
 def plotDf(df,dateCol="Date",priceCol="Adjusted",subplotArray=None,showit=True,xaxismarks=10):
-    ''' '''
+    ''' 
+    Example:
+        see printStockPerformance for examples of using subplotArray
+    '''
+    # get dates
     date = df[dateCol]
+    # make the index of the dataframe df go from 0 to len
     x = range(len(date))
     p = df[priceCol]
+    # the variable r will be the indices of the dates that we will actually show as
+    #   labels on the x axis.
     r = range(0,len(date),len(date)/xaxismarks)
+    # dtc has the dates that coincide with the indices in r
     dtc = map(lambda a:'%d' % a,date[r])
+    # if their are subplots, execute the subplot
     if subplotArray:
         plt.subplot(subplotArray[0],subplotArray[1],subplotArray[2])
-    plt.plot(x,p);plt.xticks(r,dtc,rotation=45,fontsize=9);plt.gcf().subplots_adjust(bottom=.18)
+    # do the plot with the 0-based x axis
+    plt.plot(x,p)
+    # create labels on the x axis
+    plt.xticks(r,dtc,rotation=45,fontsize=9)
+    # do the plot, and make sure you leave some padding so that the dates of
+    # the top row graphs don't bleed into the graphs of the next row (when subplots are used)
+    plt.gcf().subplots_adjust(bottom=.18)
     if showit:
         plt.show()
     
@@ -482,14 +463,160 @@ def testsubplot():
     plt.ylabel('Undamped')
     plt.show()
 
-# block=False
-# s = stockPerformance(begYyyyMmDd=20060101,block=block)
-# sr = s['retdat']
-# stkd = s['stockData']
-# dt = stkd['Date']
-#ptk = peakToTroughs(sr,dt)
 
-# print(readBarChartCsv()[0:20])
-# print(readYahoo()[0:20])
-# print(readQuandlData()[0:20])
+def plot2DailyCols(df=readYahoo('SPY',20060101,getTimeNumFromPosixDate()),dateCol='Date',col1='Adjusted',col2='Volume',
+              dateDivsor=(100*100*100),dateFormat='%Y%m%d',figsizeTuple=(8,8)):
+    '''
+    use pandas.plot (as opposed to plt.plot) to display 2 graphs, with different y-axises, on
+      the same graph 
+        do a plot of 2 columns
+        Example:
+        plotStockAdjVol()
+    '''
+    df2 = df[[col1,col2]]
+    datestr = map(str,df[dateCol]/dateDivsor)
+    df2.index = pd.to_datetime(datestr, format=dateFormat)
+    df2.plot(subplots=True,figsize=figsizeTuple)
+    plt.legend(loc='best')
+    plt.show()
+    
+def plot2IntraCols(df=readData('cl201404.csv'),xaxismarks=10,dateCol='date',col1='close',col2='volume',
+        figsizeTuple=(8,8),block=False):
+    '''
+    use pandas.plot (as opposed to plt.plot) to display 2 graphs, with different y-axises, on
+      the same graph 
+        do a plot of 2 columns
+        Example:
+        plotStockAdjVol()
+    '''
+    ''' make the index of the dataframe df go from 0 to len'''
+    x = range(len(df))
+    ''' create dataframe with just 2 columms '''
+    df2 = df[[col1,col2]]    
+    ''' change indices to be 0 to len(df) '''
+    df2.index = x
+    date = df[dateCol]
+#     ''' create a function that makes yy-mm-dd:hhmm'''
+#     def f(d):
+#         d_str = str(d)
+#         d_str = d_str[2:4]+'-'+d_str[4:6] + '-' + d_str[6:8] + '-' + d_str[8:10] + ':' + d_str[10:12] 
+#         return d_str
+#     date.index = x
+#     '''dtc has the dates that coincide with the indices in r'''
+#     r = range(0,len(date),len(date)/xaxismarks)
+#     ''' apply date string transformation to dates that you will show on x axis '''
+#     dtc = map(f,date[r])
+    ''' do the subploting '''
+    df2.plot(subplots=True,figsize=figsizeTuple,grid=True)
+    printXaxisDates(date,xaxismarks=xaxismarks,rotation=45)
+#     ''' set up the custom x axis '''
+#     plt.xticks(r,dtc,rotation=45,fontsize=9)
+    ''' adjust the legend ''' 
+    plt.legend(loc='best')
+    plt.show(block=block)
+    
+def printXaxisDates(yyyyMmDdHhMmSsDates,xaxismarks=10,rotation=45):
+    ''' 
+        Print the x axis with  yy-mm-dd:hhmm dates rotated
+    '''
+    ''' create a function that makes yy-mm-dd:hhmm'''
+    def f(d):
+        d_str = '%d' % d #str(d)
+        d_str = d_str[2:4]+'-'+d_str[4:6] + '-' + d_str[6:8] + '-' + d_str[8:10] + ':' + d_str[10:12] 
+        return d_str
+    date = Series(np.array(yyyyMmDdHhMmSsDates))
+    date.index = range(len(yyyyMmDdHhMmSsDates))
+    '''dtc has the dates that coincide with the indices in r'''
+    r = range(0,len(date),len(date)/xaxismarks)
+    ''' apply date string transformation to dates that you will show on x axis '''
+    dtc = map(f,date[r])
+    ''' set up the custom x axis '''
+    plt.xticks(r,dtc,rotation=rotation,fontsize=9)
+        
+    
 
+def plot2IntraEachDay(df=readData('cl201404.csv'),xaxismarks=10,dateCol='date',
+                      col1='close',col2='volume',
+                      figsizeTuple=(8,8),daysToShow=2):
+    '''
+    Loop through days
+    '''
+    daynums = map(str,(df[dateCol]/(100*100*100)).astype('int'))
+    df['yyyyMmDd'] = Series(daynums)
+    daynums = Series(daynums).unique()
+    
+    #main loop
+    for i in range(daysToShow,len(daynums)):
+        yyyyMmDdToShow = daynums[i:(i+daysToShow)]
+        dfToShow = df[df['yyyyMmDd'].isin(yyyyMmDdToShow)]
+        plot2IntraCols(dfToShow,xaxismarks=xaxismarks,dateCol=dateCol,
+                       col1=col1,col2=col2,figsizeTuple=figsizeTuple,block=True)
+    
+
+def plotBollLike(
+                 ticker='SPY',
+                 begYyyyMmDd=20150101,
+                 endYyyyMmDd=getTimeNumFromPosixDate(),
+                 dateCol='Date',
+                 priceCol='Adjusted',
+                 figsizeTuple=(8,8),
+                 block=False):
+    ''' plot bollinger band like series
+    Example:
+        plotBollLike()
+    '''
+    df = readYahoo(ticker,begYyyyMmDd=begYyyyMmDd,endYyyyMmDd=endYyyyMmDd)
+    df.index = range(len(df))
+    price = Series(df[priceCol])
+    ma = pd.rolling_mean(price, 20)
+    mstd = pd.rolling_std(price, 20)
+#     plt.figure()
+#     plt.plot(price.index, price, 'k')
+#     plt.plot(ma.index, ma, 'b')
+    DataFrame({'k':price,'b':ma},index=range(len(price))).plot(figsize=figsizeTuple,grid=True)
+    plt.fill_between(mstd.index, ma-2*mstd, ma+2*mstd, color='b', alpha=0.2)
+    printXaxisDates(df['Date'], 10, 45)
+    plt.legend(loc='best')
+    plt.show(block=block)
+
+
+
+def plotStockAdjVol(secname='SPY',begYyyyMmDd=20060101,endYyyyMmDd=getTimeNumFromPosixDate()):
+    df = readYahoo(secname, begYyyyMmDd, endYyyyMmDd)
+    plot2DailyCols(df)
+
+def isStockStillTrading(stk):
+    s = readYahoo(stk,begYyyyMmDd=20080101)
+    d = s['Date'].iloc[len(s)-1]
+    if d<20160201000000:
+        return 0
+    else:
+        return 1
+        
+def checkSpConstituents(spfile):
+    '''
+    Example:
+        l = checkSpConstituents('sphistcomp.csv')
+        print(sum(l['stillThere']))
+        writeData(l, "sp500ConstituentAnalysis.csv");
+    '''
+    c = readData(spfile)
+    c1 = c[c['haveLeft']==1]
+    c1.index = range(len(c1))
+    c1t = DataFrame(c1['Ticker'])
+    c1t['stillThere'] = Series([0]*len(c1t))
+    for i in range(len(c1t)):
+        t = str(c1t['Ticker'].iloc[i])
+        try:
+            r = isStockStillTrading(t)
+            print(t + ":" + str(r))
+            c1t['stillThere'].iloc[i] = r
+        except:
+            print(t + ":" + str(0))
+            c1t['stillThere'].iloc[i] = 0
+        
+        
+    return c1t
+
+#plotBollLike(block=True)
+plot2IntraEachDay(daysToShow=1)
