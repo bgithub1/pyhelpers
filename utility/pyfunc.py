@@ -11,6 +11,8 @@ import numpy as np
 import datetime
 import pandas as pd
 from test.test_gc import C1055820
+from operator import or_
+from symbol import or_test
 pd.set_option('precision', 15)
 from pandas import  DataFrame, Series
 from pandas.io.data import DataReader
@@ -480,7 +482,7 @@ def plot2DailyCols(df=readYahoo('SPY',20060101,getTimeNumFromPosixDate()),dateCo
     plt.legend(loc='best')
     plt.show()
     
-def plot2IntraCols(df=readData('cl201404.csv'),xaxismarks=10,dateCol='date',col1='close',col2='volume',
+def plot2IntraCols(df,xaxismarks=10,dateCol='date',col1='close',col2='volume',
         figsizeTuple=(8,8),block=False):
     '''
     use pandas.plot (as opposed to plt.plot) to display 2 graphs, with different y-axises, on
@@ -535,11 +537,13 @@ def printXaxisDates(yyyyMmDdHhMmSsDates,xaxismarks=10,rotation=45):
         
     
 
-def plot2IntraEachDay(df=readData('cl201404.csv'),xaxismarks=10,dateCol='date',
+def plot2IntraEachDay(df,xaxismarks=10,dateCol='date',
                       col1='close',col2='volume',
                       figsizeTuple=(8,8),daysToShow=2):
     '''
     Loop through days
+    Example:
+        plot2IntraEachDay(df=readData('cl201404.csv'),daysToShow=1)
     '''
     daynums = map(str,(df[dateCol]/(100*100*100)).astype('int'))
     df['yyyyMmDd'] = Series(daynums)
@@ -618,5 +622,39 @@ def checkSpConstituents(spfile):
         
     return c1t
 
+def aggByTimePeriodByTradingDay(dfIntra=None,hhmmLow=958, hhmmHigh=1002,dateCol='date',
+                                aggCol='volume'):
+    '''
+    Aggregate an intra day series with a date column of yyyyMmDdHhMmSs values, and a column
+      of values that you will aggregate using group by, like volume.
+    Example:
+        aggByTimePeriodByTradingDay()
+    '''
+    # get day
+    df = dfIntra
+    if (df is None) or (df.empty):
+        df = readData('cl201404.csv')
+    yyyyMmDd = map(lambda x:int(str(x)[0:8]),df[dateCol])
+    hhmm = map(lambda x:int(str(x)[8:12]),df[dateCol])
+    # insert in dataframe
+    df['yyyyMmDd'] = yyyyMmDd
+    df['hhmm'] = hhmm
+    # get bars between hhmm times
+    validBars = map(lambda x:(x >= hhmmLow) and (x <= hhmmHigh) ,hhmm)
+    # select those bars
+    dfvb = df.loc[validBars]
+    # groupby day
+    dfgb = dfvb.groupby('yyyyMmDd')
+    # do agg sum
+    dfgba = dfgb[aggCol].aggregate(np.sum)
+    dates = Series(dfvb['yyyyMmDd'].unique())
+    dates.index = range(len(dates))
+    agg = dfgba
+    agg.index = range(len(dfgba))
+    newdf = DataFrame({'date':dates,'agg':agg})
+    plotDf(newdf,priceCol='agg',dateCol='date')
+
+
+
 #plotBollLike(block=True)
-plot2IntraEachDay(daysToShow=1)
+#plot2IntraEachDay(df=readData('cl201404.csv'),daysToShow=1)
