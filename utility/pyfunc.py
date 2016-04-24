@@ -657,4 +657,4 @@ def aggByTimePeriodByTradingDay(dfIntra=None,hhmmLow=958, hhmmHigh=1002,dateCol=
 
 
 #plotBollLike(block=True)
-#plot2IntraEachDay(df=readData('cl201404.csv'),daysToShow=1)
+plot2IntraEachDay(df=readData('cl201404.csv'),daysToShow=1)
